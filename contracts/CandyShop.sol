@@ -6,8 +6,8 @@ import "./CanToken.sol";
 
 contract CandyShop {
     
-    address owner;
-    bool revertFlag;
+    address public owner;
+    bool public revertFlag;
     
     mapping(bytes => address) public canContracts;
     mapping(uint => address) public allCans;
@@ -21,21 +21,24 @@ contract CandyShop {
     }
     
     modifier onlyOwner() {
-        require(msg.sender==owner,'not owner');
+        require(msg.sender==owner,'CandyShop: permitted to owner');
         _;
     }
     
     modifier notReverted() {
-        require(!revertFlag,'Option is closed to use');
+        require(!revertFlag,'CandyShop: Option is closed to use');
         _;
     }
     
     function toggleRevert() public onlyOwner {
         revertFlag = !revertFlag;
+        emit RevertStatus(revertFlag);
     }
     
     function transferOwnership(address newOwner) public onlyOwner {
+        address oldOwner = owner;
         owner = newOwner;
+        emit ChangeOwner(oldOwner, newOwner);
     }
     
     function emergencyTakeout(IERC20 _token, address _to, uint _amount) public onlyOwner {
@@ -50,9 +53,9 @@ contract CandyShop {
         address _providingToken,
         address _rewardToken,
         uint _fee
-    ) public notReverted {
+    ) public notReverted onlyOwner {
         bytes memory key = abi.encodePacked(_farmId,_farm,_lpToken,_providingToken,_rewardToken);
-        require(canContracts[key]==address(0),"can exist");
+        require(canContracts[key]==address(0),"CandyShop: Can exists");
         Can canAddr = new Can(
             owner,
             owner,
@@ -68,5 +71,7 @@ contract CandyShop {
         allCans[canLength] = address(canAddr);
         canLength++;
     }
+    event ChangeOwner(address oldOwner, address newOwner);
+    event RevertStatus(bool revert);
 }
 
