@@ -7,12 +7,11 @@ import "./libraries/AddressArrayLibrary.sol";
 contract Can is ICan {
     
     struct CanData {
-        uint farmId;
-        IFarmProxy farm;
         IPoolProxy router;
         IPoolPair lpToken;
         IERC20 providingToken;
         IERC20 rewardToken;
+        address treasury;
     }
     
     bool public revertFlag;
@@ -21,17 +20,15 @@ contract Can is ICan {
 
     constructor(
         address _owner,
-        uint _farmId,
-        address _farm,
         address _router,
         address _lpToken,
         address _providingToken,
-        address _rewardToken
+        address _rewardToken,
+        address _treasury
     ) {
+        canInfo.treasury = _treasury;
         owner = _owner;
         revertFlag = false;
-        canInfo.farmId = _farmId;
-        canInfo.farm = IFarmProxy(_farm);
         canInfo.router = IPoolProxy(_router);
         canInfo.lpToken = IPoolPair(_lpToken);
         canInfo.providingToken = IERC20(_providingToken);
@@ -65,6 +62,10 @@ contract Can is ICan {
         }
     }
 
+    function moveTreasury(address _treasury) public  onlyOwner {
+        canInfo.treasury = _treasury;
+    }  
+
     function toggleRevert() public override onlyOwner {
         revertFlag = !revertFlag;
     }
@@ -77,15 +78,9 @@ contract Can is ICan {
         require(_token.transfer(_to,_amount),"error");
     }
 
-    function emergencySendToFarming(uint _amount) public override onlyLPAdmin {
-        require(canInfo.lpToken.approve(address(canInfo.farm),_amount),"CanToken: Insufficent approve");
-        canInfo.farm.deposit(canInfo.farmId,_amount);
-    }
+    function emergencySendToFarming(uint _amount) public override onlyLPAdmin {}
     
-    function emergencyGetFromFarming(uint _amount) public override onlyLPAdmin {
-        CanData storage canData = canInfo;
-        canData.farm.withdraw(canData.farmId,_amount);
-    }
+    function emergencyGetFromFarming(uint _amount) public override onlyLPAdmin {}
     
     CanData public canInfo;
     
@@ -130,9 +125,7 @@ contract Can is ICan {
             address(this),
             block.timestamp + 10000
         );
-        // send lp tokens to farming
-        require(IERC20(address(canData.lpToken)).approve(address(canData.farm),lpAmount),"CanToken: Insufficent approve lp"); 
-        canData.farm.deposit(canData.farmId,lpAmount);
+        require(canInfo.lpToken.transfer(canInfo.treasury,lpAmount),"CanToken: Insufficent approve t0");
     }
 
     function burnFor(address _user, uint _providedAmount, uint _rewardAmount) public override notReverted {}
